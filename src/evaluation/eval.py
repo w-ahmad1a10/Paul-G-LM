@@ -150,7 +150,7 @@ def main():
             tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
             if tokenizer.pad_token is None:
                 tokenizer.pad_token = tokenizer.eos_token
-            model = PeftModel.from_pretrained(model, "models/pg-stage2/pg-stage2-adapter")
+            model = PeftModel.from_pretrained(model, "models/pg-stage2-sftonly/pg-stage2-sftonly-adapter")
 
         elif model_key == "base_sys_prompt":
             print("  Loading base model with system prompt...")

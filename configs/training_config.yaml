@@ -22,9 +22,28 @@ stage1_cpt:
   train_file: "data/processed/train_cpt.txt"
   val_file: "data/processed/val_cpt.txt"
 
-stage2_sft:
-  output_dir: "models/pg-stage2"
-  adapter_name: "pg-stage2-adapter"
+stage2_sft_paulglm:
+  output_dir: "models/pg-stage2-paulglm"
+  adapter_name: "pg-stage2-paulglm-adapter"
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2e-4
+  warmup_steps: 100
+  logging_steps: 10
+  save_strategy: "steps"
+  save_steps: 999999
+  save_total_limit: 1
+  evaluation_strategy: "steps"
+  eval_steps: 25
+  fp16: true
+  train_file: "data/processed/train.jsonl"
+  val_file: "data/processed/val.jsonl"
+  base_adapter: "models/pg-stage1/pg-stage1-adapter"
+
+stage2_sft_only:
+  output_dir: "models/pg-stage2-sftonly"
+  adapter_name: "pg-stage2-sftonly-adapter"
   num_train_epochs: 3
   per_device_train_batch_size: 4
   gradient_accumulation_steps: 4

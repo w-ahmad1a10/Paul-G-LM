@@ -15,7 +15,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
 BASE_MODEL = "LiquidAI/LFM2.5-230M"
-STAGE2_ADAPTER = "models/pg-stage2/pg-stage2-adapter"
+STAGE2_ADAPTER = "models/pg-stage2-paulglm/pg-stage2-paulglm-adapter"
 OUTPUT_DIR = "models/paul-g-lm"
 
 
@@ -29,7 +29,7 @@ def main():
 
     if not os.path.exists(STAGE2_ADAPTER):
         print(f"\nERROR: Stage 2 adapter not found at {STAGE2_ADAPTER}")
-        print("Run Stage 2 training first: colab run --gpu T4 python src/training/train_stage2.py")
+        print("Run Stage 2 training first: colab run --gpu T4 python src/training/train_stage2_paulglm.py")
         return
 
     print("\nLoading base model...")

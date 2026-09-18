@@ -56,7 +56,8 @@ Paul-G-LM/
 │   │   └── generate.py       # Stub: synthetic generation (NOT NEEDED)
 │   ├── training/
 │   │   ├── train_stage1.py   # CPT on PG text (1 epoch, Colab T4)
-│   │   ├── train_stage2.py   # SFT on Q&A pairs (3 epochs, Colab T4)
+│   │   ├── train_stage2_paulglm.py   # SFT on pg-stage1 (PaulG-LM pipeline, 3 epochs)
+│   │   ├── train_stage2_sftonly.py   # SFT on base only (comparison, 3 epochs)
 │   │   └── merge.py          # Merge adapter with base model
 │   └── evaluation/
 │       └── eval.py           # Head-to-head eval: generate responses for all models
@@ -100,11 +101,12 @@ PIPELINE OVERVIEW
                   Output: final PG-LM (full merged model)
                   Script: src/training/merge.py
 
-  Models saved:
-  - Stage 1 end: pg-stage1 adapter (1 model)
-  - Stage 2 end: pg-stage2 adapter (1 model)
-  - Merged: PaulG-LM full model (1 model)
-  - Total: **3 models** (2 trained, 1 merged)
+  Models trained and saved:
+  - **STAGE 1 ONLY**: pg-stage1 adapter (CPT only) — also used as PaulG-LM's Stage 1
+  - **STAGE 2 ONLY**: pg-stage2-sftonly adapter (SFT on raw base) — comparison model
+  - **PaulG-LM Stage 2**: pg-stage2-paulglm adapter (SFT on pg-stage1) — intermediate
+  - **PaulG-LM final**: merged model from merge.py — final product
+  - Total: **4 models** (3 trained + 1 merged)
 
   6. EVALUATE  : Generate responses for all models → Build Judge Board
                   See EVALUATION section below
@@ -117,7 +119,7 @@ FOLDER CONTRACT (fixed)
                       TRAIN/VAL ARE BUILT FROM DATA — never hand-edit.
   src/data/          build_dataset.py, prepare_fewshot.py, build_judge_board.py,
                      collect.py, generate.py (stub)
-  src/training/      train_stage1.py (1 epoch), train_stage2.py (3 epochs), merge.py
+  src/training/      train_stage1.py (1 epoch), train_stage2_paulglm.py (3 epochs, PaulG-LM), train_stage2_sftonly.py (3 epochs, comparison), merge.py
   src/evaluation/    eval.py
   configs/           training_config.yaml
   models/            Local adapter checkpoints
@@ -147,28 +149,38 @@ RAW DATA (data/raw/)
 TWO-STAGE TRAINING
 ==================
 
-STAGE 1: PRE-TRAINING ON RAW TEXT
+STAGE 1: PRE-TRAINING ON RAW TEXT (shared by STAGE 1 ONLY and PaulG-LM)
 ---------------------------------
 Base model: LiquidAI/LFM2.5-230M
 Data: data/processed/train_cpt.txt (~1.5M words, unified from essays+tweets+merged)
 Val data: data/processed/val_cpt.txt (eval every 100 steps)
 Method: Causal LM — predict next token
 Chat Template: NONE — plain text only
-Output: pg-stage1 (HF Hub adapter repo, **1 epoch**)
+Output: pg-stage1 adapter
+Used by: STAGE 1 ONLY model AND PaulG-LM pipeline
 Duration: **1 epoch** on **Colab CLI T4 GPU**
 Total steps: **2,205** (35,271 blocks / 16 effective batch)
 Val loss checks: **~23** (every 100 steps + end)
 
-STAGE 2: SFT ON Q&A PAIRS
+STAGE 2 ONLY: SFT directly on BASE (no CPT) — comparison model
 --------------------------
-Base: Stage 1 output (pg-stage1 adapter)
+Base: LiquidAI/LFM2.5-230M (raw, no adapter)
 Data: data/processed/train.jsonl (2,785 samples)
 Val data: data/processed/val.jsonl (eval every 25 steps)
 Method: SFT with apply_chat_template
-Output: pg-stage2 (HF Hub adapter repo, **3 epochs**)
+Output: pg-stage2-sftonly adapter
 Duration: **3 epochs** on **Colab CLI T4 GPU**
-Total steps: **525** (2,785 samples / 16 effective batch × 3 epochs)
-Val loss checks: **~22** (every 25 steps + end)
+Total steps: **525**
+
+STAGE 2 FOR PAULG-LM: SFT using pg-stage1 adapter (PaulG-LM pipeline)
+--------------------------
+Base: pg-stage1 adapter (from Stage 1 CPT)
+Data: data/processed/train.jsonl (2,785 samples)
+Val data: data/processed/val.jsonl (eval every 25 steps)
+Method: SFT with apply_chat_template
+Output: pg-stage2-paulglm adapter
+Duration: **3 epochs** on **Colab CLI T4 GPU**
+Total steps: **525**
 
 FINAL MERGE
 -----------
@@ -279,7 +291,7 @@ KEY COMMANDS
   python src/data/build_judge_board.py
   python src/training/merge.py
   colab run --gpu T4 python src/training/train_stage1.py
-  colab run --gpu T4 python src/training/train_stage2.py
+  colab run --gpu T4 python src/training/train_stage2_paulglm.py
   colab run --gpu T4 python src/evaluation/eval.py
   streamlit run "D:\Workspace\01 Projects\w1a-board\src\app.py"
 

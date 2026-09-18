@@ -37,10 +37,11 @@ Paul-G-LM/
 ## Pipeline
 
 1. **Data**: PG essays + tweets + Q&A pairs (all in `data/raw/`, already collected)
-2. **Stage 1 (CPT)**: Pre-train on unified PG text → learns PG's voice (1 epoch)
-3. **Stage 2 (SFT)**: Fine-tune on Q&A pairs → learns to answer questions (3 epochs)
-4. **Merge**: Merge adapter with base model → final PG-LM
-5. **Evaluate**: Judge Board — you compare head-to-head (no scores)
+2. **Stage 1 (CPT)**: Pre-train on unified PG text → pg-stage1 adapter (1 epoch)
+3. **Stage 2 (SFT)**: Fine-tune pg-stage1 on Q&A → pg-stage2-paulglm adapter (3 epochs)
+4. **Merge**: Merge pg-stage2-paulglm + base → final PaulG-LM
+5. **Also train**: STAGE 2 ONLY model (SFT directly on base, no CPT) — for comparison
+6. **Evaluate**: Judge Board — you compare head-to-head (no scores)
 
 ## SFT Data
 
@@ -54,8 +55,19 @@ LiquidAI/LFM2.5-230M
 
 All training runs on **Google Colab** via Colab CLI.
 
-- Stage 1: `colab run --gpu T4 python src/training/train_stage1.py` (1 epoch)
-- Stage 2: `colab run --gpu T4 python src/training/train_stage2.py` (3 epochs)
+- Stage 1 (CPT): `colab run --gpu T4 python src/training/train_stage1.py` (1 epoch)
+- Stage 2 ONLY (SFT on base): `colab run --gpu T4 python src/training/train_stage2_sftonly.py` (3 epochs)
+- Stage 2 for PaulG-LM (SFT on Stage 1): `colab run --gpu T4 python src/training/train_stage2_paulglm.py` (3 epochs)
+- Merge: `python src/training/merge.py`
+
+## Models Trained
+
+| Model | Script | Output |
+|-------|--------|--------|
+| STAGE 1 ONLY | `train_stage1.py` | `models/pg-stage1/` |
+| STAGE 2 ONLY | `train_stage2_sftonly.py` | `models/pg-stage2-sftonly/` |
+| PaulG-LM Stage 2 | `train_stage2_paulglm.py` | `models/pg-stage2-paulglm/` |
+| PaulG-LM final | `merge.py` | `models/paul-g-lm/` |
 
 ## Evaluation — Judge Board
 
@@ -63,11 +75,11 @@ Head-to-head comparison only. No score-based evaluation.
 
 **Generation:** temperature=0.9, top_k=50, max_new_tokens=256
 
-**Models compared:**
-- STAGE 1 ONLY — CPT only (pre-trained on PG text, no SFT)
-- STAGE 2 ONLY — SFT directly on base (no CPT)
+**Models compared (PaulG-LM faces each one):**
+- STAGE 1 ONLY — CPT only (pg-stage1)
+- STAGE 2 ONLY — SFT only on base (pg-stage2-sftonly)
 - BASE — LiquidAI/LFM2.5-230M, no fine-tuning, no prompt
-- BASE + SYS PROMPT — base + system prompt "Speak like Paul Graham"
+- BASE + SYSTEM PROMPT — base + system prompt "Speak like Paul Graham"
 - BASE + SYS PROMPT + 10 EXAMPLES — base + system prompt + 10 few-shot from val.jsonl (longest answers)
 - PAULGLLM — final merged model (CPT + SFT)
 
@@ -91,8 +103,11 @@ python src/data/prepare_fewshot.py
 # Stage 1 (Colab, 1 epoch)
 colab run --gpu T4 python src/training/train_stage1.py
 
-# Stage 2 (Colab, 3 epochs)
-colab run --gpu T4 python src/training/train_stage2.py
+# Stage 2 ONLY (Colab, 3 epochs)
+colab run --gpu T4 python src/training/train_stage2_sftonly.py
+
+# Stage 2 PaulG-LM (Colab, 3 epochs)
+colab run --gpu T4 python src/training/train_stage2_paulglm.py
 
 # Merge final model
 python src/training/merge.py

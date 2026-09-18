@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-Stage 2: Supervised Fine-Tuning (SFT) on Q&A pairs.
+Stage 2 ONLY: Supervised Fine-Tuning directly on base model (no CPT).
 
-Fine-tunes LiquidAI/LFM2.5-230M + pg-stage1 adapter on Q&A data.
-Uses apply_chat_template for SFT. 3 epochs on Colab T4 GPU.
+Fine-tunes LiquidAI/LFM2.5-230M directly on Q&A data using SFT.
+This produces a model that has ONLY SFT training (no continued pre-training).
+Used as a comparison model in head-to-head evaluation.
 
-Output: pg-stage2 LoRA adapter
+Runs on Colab T4 GPU.
 
 Usage (Colab):
-    colab run --gpu T4 python src/training/train_stage2.py
+    colab run --gpu T4 python src/training/train_stage2_sftonly.py
 
 Or locally if GPU available:
-    python src/training/train_stage2.py
+    python src/training/train_stage2_sftonly.py
 """
 import os
 import sys
@@ -24,11 +25,10 @@ from peft import PeftModel, LoraConfig, get_peft_model
 from datasets import load_dataset
 
 BASE_MODEL = "LiquidAI/LFM2.5-230M"
-STAGE1_ADAPTER = "models/pg-stage1/pg-stage1-adapter"
 TRAIN_FILE = "data/processed/train.jsonl"
 VAL_FILE = "data/processed/val.jsonl"
-OUTPUT_DIR = "models/pg-stage2"
-ADAPTER_NAME = "pg-stage2-adapter"
+OUTPUT_DIR = "models/pg-stage2-sftonly"
+ADAPTER_NAME = "pg-stage2-sftonly-adapter"
 
 LORA_R = 16
 LORA_ALPHA = 32
@@ -40,15 +40,15 @@ GRADIENT_ACCUMULATION = 4
 LEARNING_RATE = 2e-4
 WARMUP_STEPS = 100
 LOGGING_STEPS = 10
-SAVE_STEPS = 500
+SAVE_STEPS = 999999
 MAX_LENGTH = 512
+EVAL_STEPS = 25
 
 
 def main():
     print("=" * 60)
-    print("STAGE 2: Supervised Fine-Tuning (SFT)")
+    print("STAGE 2 ONLY: SFT directly on BASE (no CPT)")
     print(f"Base: {BASE_MODEL}")
-    print(f"Adapter: {STAGE1_ADAPTER}")
     print(f"Data: {TRAIN_FILE}")
     print(f"Epochs: {EPOCHS}")
     print(f"Output: {OUTPUT_DIR}")
@@ -59,15 +59,14 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    print("Loading base model + Stage 1 adapter...")
-    base_model = AutoModelForCausalLM.from_pretrained(
+    print("Loading base model...")
+    model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL,
         torch_dtype=torch.float16,
         device_map="auto" if torch.cuda.is_available() else "cpu",
     )
-    model = PeftModel.from_pretrained(base_model, STAGE1_ADAPTER)
 
-    print("Configuring LoRA for Stage 2...")
+    print("Configuring LoRA for Stage 2 ONLY...")
     lora_config = LoraConfig(
         r=LORA_R,
         lora_alpha=LORA_ALPHA,
@@ -108,10 +107,10 @@ def main():
         warmup_steps=WARMUP_STEPS,
         logging_steps=LOGGING_STEPS,
         save_strategy="steps",
-        save_steps=999999,
+        save_steps=SAVE_STEPS,
         save_total_limit=1,
         evaluation_strategy="steps" if val_data else "no",
-        eval_steps=25 if val_data else None,
+        eval_steps=EVAL_STEPS if val_data else None,
         fp16=torch.cuda.is_available(),
         optim="adamw_torch",
         max_grad_norm=1.0,
@@ -132,7 +131,7 @@ def main():
 
     trainer.save_model(output_dir)
     tokenizer.save_pretrained(output_dir)
-    print(f"\nStage 2 complete! Adapter saved to {output_dir}")
+    print(f"\nStage 2 ONLY complete! Adapter saved to {output_dir}")
 
 
 if __name__ == "__main__":
