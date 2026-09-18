@@ -61,6 +61,8 @@ All training runs on **Google Colab** via Colab CLI.
 
 Head-to-head comparison only. No score-based evaluation.
 
+**Generation:** temperature=0.9, top_k=50, max_new_tokens=256
+
 **Models compared:**
 - STAGE 1 ONLY — CPT only (pre-trained on PG text, no SFT)
 - STAGE 2 ONLY — SFT directly on base (no CPT)

@@ -187,9 +187,13 @@ EVALUATION — JUDGE BOARD (NO SCORES)
 This project does NOT use score-based evaluation (no 0-100 ratings).
 All evaluation is **head-to-head comparison** using a **Judge Board**.
 
+GENERATION PARAMS (eval/inference):
+  temperature: 0.9 | top_k: 50 | max_new_tokens: 256
+  (No top_p, no repetition_penalty)
+
 EVALUATION FLOW:
   1. Generate responses from ALL models for 50 test questions
-     Models: STAGE 1, STAGE 2 ONLY, BASE, BASE+SYS_PROMPT, BASE+SYS+10, PAULGLLM
+     Models: STAGE 1, STAGE 2 ONLY, BASE, BASE+SYS_PROMPT, BASE+SYS+10_EXAMPLES, PAULGLLM
   2. Build Judge Board (HTML) via build_judge_board.py
   3. **You (user)** manually judge each question blind
   4. Tally results → final head-to-head report

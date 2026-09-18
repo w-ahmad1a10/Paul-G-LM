@@ -28,7 +28,7 @@ OUTPUT_DIR = "experiments/responses"
 
 MAX_NEW_TOKENS = 256
 TEMPERATURE = 0.9
-TOP_P = 0.9
+TOP_K = 50
 
 
 def load_test_questions(filepath: str) -> list:
@@ -54,8 +54,7 @@ def generate_response(model, tokenizer, question: str) -> str:
             max_new_tokens=MAX_NEW_TOKENS,
             do_sample=True,
             temperature=TEMPERATURE,
-            top_p=TOP_P,
-            repetition_penalty=1.2,
+            top_k=TOP_K,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id,
         )
@@ -212,8 +211,7 @@ def main():
                     max_new_tokens=MAX_NEW_TOKENS,
                     do_sample=True,
                     temperature=TEMPERATURE,
-                    top_p=TOP_P,
-                    repetition_penalty=1.2,
+                    top_k=TOP_K,
                     pad_token_id=tokenizer.pad_token_id,
                     eos_token_id=tokenizer.eos_token_id,
                 )

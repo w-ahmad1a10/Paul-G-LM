@@ -38,11 +38,13 @@ lora:
   bias: "none"
   target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
-evaluation:
-  test_questions: "data/eval/test_questions.jsonl"
+generation:
   max_new_tokens: 256
   temperature: 0.9
-  top_p: 0.9
+  top_k: 50
+
+evaluation:
+  test_questions: "data/eval/test_questions.jsonl"
   models_to_compare:
     - "stage1_only"
     - "stage2_only"
