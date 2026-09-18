@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Data (large files - stay local)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Models
+models/
+*.bin
+*.pt
+*.pth
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+#临时
+*.tmp
+*.log
