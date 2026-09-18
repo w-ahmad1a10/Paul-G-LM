@@ -58,6 +58,7 @@ Paul-G-LM/
 │   │   ├── train_stage1.py   # CPT on PG text (1 epoch, Colab T4)
 │   │   ├── train_stage2_paulglm.py   # SFT on pg-stage1 (PaulG-LM pipeline, 3 epochs)
 │   │   ├── train_stage2_sftonly.py   # SFT on base only (comparison, 3 epochs)
+│   │   ├── run_on_colab.py # Full pipeline runner (Colab, all steps)
 │   │   └── merge.py          # Merge adapter with base model
 │   └── evaluation/
 │       └── eval.py           # Head-to-head eval: generate responses for all models
@@ -119,7 +120,8 @@ FOLDER CONTRACT (fixed)
                       TRAIN/VAL ARE BUILT FROM DATA — never hand-edit.
   src/data/          build_dataset.py, prepare_fewshot.py, build_judge_board.py,
                      collect.py, generate.py (stub)
-  src/training/      train_stage1.py (1 epoch), train_stage2_paulglm.py (3 epochs, PaulG-LM), train_stage2_sftonly.py (3 epochs, comparison), merge.py
+  src/training/      train_stage1.py, train_stage2_paulglm.py, train_stage2_sftonly.py, run_on_colab.py (all-in-one Colab runner), merge.py
+src/               package_for_colab.sh (package data+scripts for Colab upload)
   src/evaluation/    eval.py
   configs/           training_config.yaml
   models/            Local adapter checkpoints
@@ -273,27 +275,60 @@ NON-NEGOTIABLE RULES
 COLAB CLI WORKFLOW
 --------------------
 1. Authenticate: `colab auth`
-2. For training runs: `colab run --gpu T4 python src/training/train_stage1.py`
-3. For interactive dev: `colab new -s pg-train --gpu T4 --high-mem`
-4. Run local scripts on VM: `colab exec -s pg-train -f /home/waleed10/.../train.py`
-5. Upload data: `colab upload -s pg-train ./data ./data`
-6. Download results: `colab download -s pg-train /content/model ./model`
-7. Stop when done: `colab stop -s pg-train`
+2. Install CLI from git (avoids jupyter-kernel-client bug):
+     uv tool install git+https://github.com/googlecolab/google-colab-cli.git
+3. Package project: `bash src/package_for_colab.sh` → prints run instructions
+4. Full run procedure (see RUN PROCEDURE below)
+5. Stop VM when done: `colab stop -s paulglim`
 
-Note: Colab CLI must be installed from git:
-  uv tool install google-colab-cli
+Note: `colab exec` has 10s poll timeout — `run_on_colab.py` includes
+heartbeat prints every 5s to avoid this. If it times out, check progress
+with `colab exec -s paulglim 'ps aux | grep python'`.
+
+=======================================================================
+RUN PROCEDURE
+--------------------
+Step 0 — Package locally:
+  bash src/package_for_colab.sh
+
+Step 1 — Provision VM (keeps alive):
+  colab new -s paulglim --gpu T4 --keep
+
+Step 2 — Upload package:
+  colab upload -s paulglim /tmp/paulglim_colab.tar.gz /content/paulglim_colab.tar.gz
+
+Step 3 — Extract + install deps:
+  colab exec -s paulglim 'cd /content && tar xzf paulglim_colab.tar.gz && pip install -q transformers peft datasets accelerate'
+
+Step 4 — Run full pipeline:
+  colab exec -s paulglim -f /content/src/training/run_on_colab.py
+
+Step 5 — Download results:
+  colab download -s paulglim /content/models ./paulglim_models
+  colab download -s paulglim /content/experiments ./paulglim_experiments
+
+Step 6 — Build judge board locally:
+  cd "/mnt/c/Workspace/01 Projects/Paul-G-Lm" && python src/data/build_judge_board.py
+
+Step 7 — Stop VM:
+  colab stop -s paulglim
 
 =======================================================================
 KEY COMMANDS
 --------------
+  bash src/package_for_colab.sh     (package for Colab)
   python src/data/build_dataset.py
   python src/data/prepare_fewshot.py
   python src/data/build_judge_board.py
+  python src/training/run_on_colab.py  (full pipeline on Colab)
+  python src/training/train_stage1.py
+  python src/training/train_stage2_sftonly.py
+  python src/training/train_stage2_paulglm.py
   python src/training/merge.py
-  colab run --gpu T4 python src/training/train_stage1.py
-  colab run --gpu T4 python src/training/train_stage2_paulglm.py
-  colab run --gpu T4 python src/evaluation/eval.py
-  streamlit run "D:\Workspace\01 Projects\w1a-board\src\app.py"
+  python src/evaluation/eval.py
+  colab new -s paulglim --gpu T4 --keep
+  colab upload / colab download / colab exec -s paulglim
+  colab stop -s paulglim
 
 =======================================================================
 END OF AGENT MANUAL — PaulG-LM v0.1

@@ -1,0 +1,52 @@
+#!/bin/bash
+# Package all files needed for Colab run.
+# Run this locally, then follow the printed instructions.
+
+set -e
+
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+OUTPUT="/tmp/paulglim_colab.tar.gz"
+
+cd "$PROJECT_DIR"
+
+tar czf "$OUTPUT" \
+  --exclude='data/raw/*' \
+  --exclude='models/*' \
+  --exclude='logs/*' \
+  --exclude='.git' \
+  src configs data/processed data/eval/test_questions.jsonl \
+  data/raw/fewshot_examples.jsonl data/raw/train_filtered.csv \
+  Paul-G-LM.md agent.md
+
+echo ""
+echo "Created: $OUTPUT ($(du -h "$OUTPUT" | cut -f1))"
+echo ""
+echo "═══════════════════════════════════════════════════════════"
+echo "  RUN ON COLAB — Step by step"
+echo "═══════════════════════════════════════════════════════════"
+echo ""
+echo "1. Provision VM (keeps alive until you stop it):"
+echo "   colab new -s paulglim --gpu T4 --keep"
+echo ""
+echo "2. Upload project package:"
+echo "   colab upload -s paulglim $OUTPUT /content/paulglim_colab.tar.gz"
+echo ""
+echo "3. Extract + install deps:"
+echo "   colab exec -s paulglim 'cd /content && tar xzf paulglim_colab.tar.gz && pip install -q transformers peft datasets accelerate'"
+echo ""
+echo "4. Run pipeline:"
+echo "   colab exec -s paulglim -f /content/src/training/run_on_colab.py"
+echo "   (may time out due to 10s poll — check progress with:) "
+echo "   colab exec -s paulglim 'ps aux | grep python'"
+echo ""
+echo "5. Download results:"
+echo "   colab download -s paulglim /content/models ./paulglim_models"
+echo "   colab download -s paulglim /content/experiments ./paulglim_experiments"
+echo ""
+echo "6. Build judge board locally (uses downloaded responses):"
+echo "   cd \"$PROJECT_DIR\" && python src/data/build_judge_board.py"
+echo ""
+echo "7. Stop VM when done:"
+echo "   colab stop -s paulglim"
+echo ""
+echo "═══════════════════════════════════════════════════════════"
