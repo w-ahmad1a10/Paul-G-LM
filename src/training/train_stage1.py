@@ -100,6 +100,14 @@ def main():
         remove_columns=["text"],
     )
 
+    print("Loading val CPT data for evaluation...")
+    val_raw = load_dataset(str(Path(TRAIN_FILE).parent / "val_cpt.txt"))
+    val_tokenized = val_raw.map(
+        lambda x: tokenize_fn(x, tokenizer, MAX_LENGTH),
+        batched=True,
+        remove_columns=["text"],
+    )
+
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=False,
@@ -114,9 +122,12 @@ def main():
         gradient_accumulation_steps=GRADIENT_ACCUMULATION,
         learning_rate=LEARNING_RATE,
         warmup_steps=WARMUP_STEPS,
-        logging_steps=10,
-        save_steps=500,
+        logging_steps=LOGGING_STEPS,
+        save_strategy="steps",
+        save_steps=999999,
         save_total_limit=1,
+        evaluation_strategy="steps",
+        eval_steps=100,
         fp16=torch.cuda.is_available(),
         optim="adamw_torch",
         max_grad_norm=1.0,
@@ -125,7 +136,8 @@ def main():
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_data=tokenized,
+        train_dataset=tokenized,
+        eval_dataset=val_tokenized,
         data_collator=data_collator,
     )
 

@@ -100,6 +100,12 @@ PIPELINE OVERVIEW
                   Output: final PG-LM (full merged model)
                   Script: src/training/merge.py
 
+  Models saved:
+  - Stage 1 end: pg-stage1 adapter (1 model)
+  - Stage 2 end: pg-stage2 adapter (1 model)
+  - Merged: PaulG-LM full model (1 model)
+  - Total: **3 models** (2 trained, 1 merged)
+
   6. EVALUATE  : Generate responses for all models → Build Judge Board
                   See EVALUATION section below
 
@@ -145,18 +151,24 @@ STAGE 1: PRE-TRAINING ON RAW TEXT
 ---------------------------------
 Base model: LiquidAI/LFM2.5-230M
 Data: data/processed/train_cpt.txt (~1.5M words, unified from essays+tweets+merged)
+Val data: data/processed/val_cpt.txt (eval every 100 steps)
 Method: Causal LM — predict next token
 Chat Template: NONE — plain text only
 Output: pg-stage1 (HF Hub adapter repo, **1 epoch**)
 Duration: **1 epoch** on **Colab CLI T4 GPU**
+Total steps: **2,205** (35,271 blocks / 16 effective batch)
+Val loss checks: **~23** (every 100 steps + end)
 
 STAGE 2: SFT ON Q&A PAIRS
 --------------------------
 Base: Stage 1 output (pg-stage1 adapter)
 Data: data/processed/train.jsonl (2,785 samples)
+Val data: data/processed/val.jsonl (eval every 25 steps)
 Method: SFT with apply_chat_template
 Output: pg-stage2 (HF Hub adapter repo, **3 epochs**)
 Duration: **3 epochs** on **Colab CLI T4 GPU**
+Total steps: **525** (2,785 samples / 16 effective batch × 3 epochs)
+Val loss checks: **~22** (every 25 steps + end)
 
 FINAL MERGE
 -----------

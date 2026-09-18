@@ -107,13 +107,14 @@ def main():
         learning_rate=LEARNING_RATE,
         warmup_steps=WARMUP_STEPS,
         logging_steps=LOGGING_STEPS,
-        save_steps=SAVE_STEPS,
+        save_strategy="steps",
+        save_steps=999999,
         save_total_limit=1,
+        evaluation_strategy="steps" if val_data else "no",
+        eval_steps=25 if val_data else None,
         fp16=torch.cuda.is_available(),
         optim="adamw_torch",
         max_grad_norm=1.0,
-        evaluation_strategy="steps" if val_data else "no",
-        eval_steps=500 if val_data else None,
     )
 
     trainer = Trainer(
@@ -123,6 +124,8 @@ def main():
         eval_dataset=val_data,
         data_collator=data_collator,
     )
+
+    print(f"\nVal checks: every 25 steps, total ~525 steps, ~22 evaluations")
 
     print("\nStarting training...")
     trainer.train()

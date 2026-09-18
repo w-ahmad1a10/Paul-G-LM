@@ -13,9 +13,14 @@ stage1_cpt:
   learning_rate: 2e-4
   warmup_steps: 100
   logging_steps: 10
-  save_steps: 500
+  save_strategy: "steps"
+  save_steps: 999999
+  save_total_limit: 1
+  evaluation_strategy: "steps"
+  eval_steps: 100
   fp16: true
-  data_file: "data/processed/train_cpt.txt"
+  train_file: "data/processed/train_cpt.txt"
+  val_file: "data/processed/val_cpt.txt"
 
 stage2_sft:
   output_dir: "models/pg-stage2"
@@ -26,7 +31,11 @@ stage2_sft:
   learning_rate: 2e-4
   warmup_steps: 100
   logging_steps: 10
-  save_steps: 500
+  save_strategy: "steps"
+  save_steps: 999999
+  save_total_limit: 1
+  evaluation_strategy: "steps"
+  eval_steps: 25
   fp16: true
   train_file: "data/processed/train.jsonl"
   val_file: "data/processed/val.jsonl"
