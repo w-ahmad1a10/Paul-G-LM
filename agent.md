@@ -1,7 +1,7 @@
 # AGENT MANUAL — PaulG-LM
 Purpose: operating manual for any AI coding agent working in this repo.
 Machine: Waleed's laptop | D: is source of truth
-Status: v0.1 — 2026-09-18. Project initialized. Data collected, training pending.
+Status: v0.1 — 2026-09-18. Project initialized. Data prepared, training pending.
 
 =======================================================================
 WHAT THIS PROJECT IS
@@ -32,28 +32,34 @@ Paul-G-LM/
 ├── Paul-G-LM.md              # Project overview
 ├── .gitignore
 ├── data/
-│   ├── raw/                  # RAW PG TEXT (Stage 1 input + SFT data)
-│   │   ├── all_pg_essays_merged.txt  # ~1.5M words, 3 sources merged
+│   ├── raw/                  # RAW PG TEXT + EVAL DATA
+│   │   ├── all_pg_essays_merged.txt  # ~1.5M words, Stage 1 CPT text
 │   │   ├── all_pg_essays_merged.jsonl
-│   │   ├── essays.jsonl        # 907 essay chunks (230 essays, ~4k chars each)
+│   │   ├── essays.jsonl        # 907 essay chunks (230 essays)
 │   │   ├── tweets.jsonl        # 38,080 PG tweets (2010-2026)
-│   │   ├── df_train.csv        # 3,144 Q&A pairs — SFT data (READY TO USE)
+│   │   ├── fewshot_examples.jsonl    # 10 longest val.jsonl answers
 │   │   ├── README.md
 │   │   └── SOURCES.md
-│   ├── processed/            # Processed SFT datasets (if needed)
-│   │   ├── train.jsonl
-│   │   └── val.jsonl
+│   ├── processed/            # PROCESSED TRAINING DATA
+│   │   ├── train_cpt.txt     # Unified PG text for CPT (~14.5 MB, 35,271 blocks)
+│   │   ├── val_cpt.txt       # 10% val CPT text (~1.6 MB, 3,919 blocks)
+│   │   ├── train.jsonl       # SFT training (2,785 samples)
+│   │   └── val.jsonl         # SFT validation (309 samples)
+│   └── eval/
+│       └── test_questions.jsonl  # 50 eval questions
 ├── src/
 │   ├── data/
-│   │   ├── build_dataset.py  # Merge & split into train/val
+│   │   ├── build_dataset.py  # CSV → JSONL + 90/10 split (reproducibility)
+│   │   ├── prepare_fewshot.py # Extract 10 longest val.jsonl → fewshot_examples.jsonl
+│   │   ├── build_judge_board.py # Build HTML judge board for manual evaluation
 │   │   ├── collect.py        # Stub: data collection (done manually)
-│   │   └── generate.py       # Stub: synthetic generation (NOT NEEDED — SFT data exists)
+│   │   └── generate.py       # Stub: synthetic generation (NOT NEEDED)
 │   ├── training/
-│   │   ├── train_stage1.py   # CPT on PG text (causal LM)
-│   │   ├── train_stage2.py   # SFT on Q&A pairs
+│   │   ├── train_stage1.py   # CPT on PG text (1 epoch, Colab T4)
+│   │   ├── train_stage2.py   # SFT on Q&A pairs (3 epochs, Colab T4)
 │   │   └── merge.py          # Merge adapter with base model
 │   └── evaluation/
-│       └── eval.py           # Head-to-head eval script
+│       └── eval.py           # Head-to-head eval: generate responses for all models
 ├── configs/
 │   └── training_config.yaml
 ├── models/                   # LOCAL ADAPTERS
@@ -66,45 +72,46 @@ Paul-G-LM/
 =======================================================================
 PIPELINE OVERVIEW
 -----------------
-  1. RAW      : PG essays + tweets in data/raw/
-                  Stage 1 uses all_pg_essays_merged.txt ONLY — plain text for CPT
+  1. RAW      : PG essays + tweets + Q&A pairs in data/raw/
+                  Stage 1 CPT uses unified text from all 3 sources
 
-  2. SYNTH    : NOT NEEDED — SFT data already exists (data/raw/df_train.csv)
-                  3,144 Q&A pairs ready for Stage 2 SFT
+  2. PREP     : build_dataset.py → train.jsonl + val.jsonl (already done)
+                 prepare_fewshot.py → fewshot_examples.jsonl (10 longest)
 
-  3. MERGE    : build_dataset.py dedupes by instruction + splits
-                  -> train.jsonl + val.jsonl
-
-  4. TRAIN STAGE 1 : Pre-train on PG text (causal LM)
+  3. TRAIN STAGE 1 : Pre-train on PG text (causal LM)
                   Base: LiquidAI/LFM2.5-230M
-                  Data: data/raw/all_pg_essays_merged.txt
+                  Data: data/processed/train_cpt.txt
                   Chat Template: NONE — plain text only
-                  Output: pg-stage1 (HF Hub adapter repo, 3 epochs)
+                  Epochs: **1**
+                  Output: pg-stage1 (HF Hub adapter repo)
                   Executed on **Colab CLI** (T4 GPU)
 
-  5. TRAIN STAGE 2 : Fine-tune on Q&A pairs (SFT)
-                  Base: Stage 1 output
-                  Data: train.jsonl (from df_train.csv)
+  4. TRAIN STAGE 2 : Fine-tune on Q&A pairs (SFT)
+                  Base: Stage 1 output (pg-stage1 adapter)
+                  Data: data/processed/train.jsonl
                   Method: SFT with apply_chat_template
-                  Output: pg-stage2 (HF Hub adapter repo, 3 epochs)
+                  Epochs: **3**
+                  Output: pg-stage2 (HF Hub adapter repo)
                   Executed on **Colab CLI** (T4 GPU)
 
-  6. MERGE FINAL : Merge adapter with base model
+  5. MERGE FINAL : Merge adapter with base model
                   Base: LiquidAI/LFM2.5-230M
                   Adapter: pg-stage2/epoch-3
                   Output: final PG-LM (full merged model)
                   Script: src/training/merge.py
 
-  7. EVALUATE : Head-to-head comparison (see EVALUATION section below)
+  6. EVALUATE  : Generate responses for all models → Build Judge Board
+                  See EVALUATION section below
 
 =======================================================================
 FOLDER CONTRACT (fixed)
 ----------------------
-  data/raw/          all_pg_essays_merged.txt + original files + df_train.csv
-  data/processed/    train.jsonl, val.jsonl
+  data/raw/          all text sources + fewshot + test questions
+  data/processed/    train_cpt.txt, val_cpt.txt, train.jsonl, val.jsonl
                       TRAIN/VAL ARE BUILT FROM DATA — never hand-edit.
-  src/data/          build_dataset.py, collect.py, generate.py (stub — not needed)
-  src/training/      train_stage1.py, train_stage2.py, merge.py
+  src/data/          build_dataset.py, prepare_fewshot.py, build_judge_board.py,
+                     collect.py, generate.py (stub)
+  src/training/      train_stage1.py (1 epoch), train_stage2.py (3 epochs), merge.py
   src/evaluation/    eval.py
   configs/           training_config.yaml
   models/            Local adapter checkpoints
@@ -117,9 +124,8 @@ RAW DATA (data/raw/)
   all_pg_essays_merged.txt  ~1.5M words (3 sources combined, exact dedup)
                              Real PG: essays, tweets, book excerpts
 
-  df_train.csv  3,144 Q&A pairs about PG essays
-                Source: RNDRantoM/paul-graham-essays-qa
-                Already formatted as {question, answer} — ready for SFT
+  fewshot_examples.jsonl  10 Q&A pairs with longest answers from val.jsonl
+                          Used for BASE + SYS PROMPT + 10 EXAMPLES model only
 
   tweets.jsonl  38,080 PG tweets (2010-2026)
                 Source: aaahmet/paulg-tweets
@@ -129,7 +135,7 @@ RAW DATA (data/raw/)
 
   SOURCES: paulgraham.com essays, pg tweets (2010-2026)
 
-  STAGE 1 USES all_pg_essays_merged.txt ONLY — plain text for causal LM pre-training.
+  Stage 1 uses unified text combining all 3 essay/tweet sources.
 
 =======================================================================
 TWO-STAGE TRAINING
@@ -138,19 +144,19 @@ TWO-STAGE TRAINING
 STAGE 1: PRE-TRAINING ON RAW TEXT
 ---------------------------------
 Base model: LiquidAI/LFM2.5-230M
-Data: data/raw/all_pg_essays_merged.txt (~1.5M words)
+Data: data/processed/train_cpt.txt (~1.5M words, unified from essays+tweets+merged)
 Method: Causal LM — predict next token
 Chat Template: NONE — plain text only
-Output: pg-stage1 (HF Hub adapter repo, 3 epochs)
-Duration: 3 epochs on **Colab CLI T4 GPU**
+Output: pg-stage1 (HF Hub adapter repo, **1 epoch**)
+Duration: **1 epoch** on **Colab CLI T4 GPU**
 
 STAGE 2: SFT ON Q&A PAIRS
 --------------------------
 Base: Stage 1 output (pg-stage1 adapter)
-Data: train.jsonl (from df_train.csv — already exists, no generation needed)
+Data: data/processed/train.jsonl (2,785 samples)
 Method: SFT with apply_chat_template
-Output: pg-stage2 (HF Hub adapter repo, 3 epochs)
-Duration: 3 epochs on **Colab CLI T4 GPU**
+Output: pg-stage2 (HF Hub adapter repo, **3 epochs**)
+Duration: **3 epochs** on **Colab CLI T4 GPU**
 
 FINAL MERGE
 -----------
@@ -160,7 +166,7 @@ Output: final PG-LM (full merged model)
 Script: src/training/merge.py
 
 Pipeline:
-  lfm-230m → [Stage 1 CPT] → pg-base → [Stage 2 SFT] → pg-lora → [merge] → PaulG-LM
+  lfm-230m → [Stage 1 CPT, 1 epoch] → pg-base → [Stage 2 SFT, 3 epochs] → pg-lora → [merge] → PaulG-LM
 
 =======================================================================
 SFT DATA FORMAT
@@ -168,28 +174,41 @@ SFT DATA FORMAT
 {"instruction": "<question>", "output": "<PG-style answer>"}
 NO system field. PG identity comes from training, not prompting.
 
-Primary SFT data: data/raw/df_train.csv (3,144 Q&A pairs from RNDRantoM/paul-graham-essays-qa)
-Convert directly to JSONL for SFT — **NO data generation needed**.
+SFT training data: data/processed/train.jsonl (2,785 samples, from original CSV)
+SFT validation data: data/processed/val.jsonl (309 samples)
+**NO data generation needed** — already prepared.
+
+Few-shot examples for BASE+SYS+10: data/raw/fewshot_examples.jsonl (10 samples,
+extracted as 10 longest answers from val.jsonl)
 
 =======================================================================
-EVALUATION — HEAD-TO-HEAD (NO SCORES)
-========================================
+EVALUATION — JUDGE BOARD (NO SCORES)
+==========================================
 This project does NOT use score-based evaluation (no 0-100 ratings).
-All evaluation is **head-to-head comparison**.
+All evaluation is **head-to-head comparison** using a **Judge Board**.
 
 EVALUATION FLOW:
-  1. Generate responses from each model for test questions
-  2. Sub-agent judges compare per-question responses head-to-head
-  3. Report total head-to-head wins
+  1. Generate responses from ALL models for 50 test questions
+     Models: STAGE 1, STAGE 2 ONLY, BASE, BASE+SYS_PROMPT, BASE+SYS+10, PAULGLLM
+  2. Build Judge Board (HTML) via build_judge_board.py
+  3. **You (user)** manually judge each question blind
+  4. Tally results → final head-to-head report
 
-MODELS COMPARED:
-  - STAGE 1 — CPT only (pre-trained on PG text, no SFT)
-  - PAULGLLM — final merged model (CPT + SFT)
-  - STAGE 2 ONLY — SFT directly on base (no CPT)
+MODELS COMPARED (PaulG-LM faces each one):
+  - STAGE 1 ONLY — CPT only (1 epoch, no SFT)
+  - STAGE 2 ONLY — SFT only (3 epochs, no CPT)
   - BASE — LiquidAI/LFM2.5-230M, no fine-tuning, no prompt
-  - BASE + SYSTEM PROMPT — base model with system prompt: "Speak like Paul Graham"
-  - BASE + SYS PROMPT + 10 EXAMPLES — base model with system prompt + 10 few-shot
-    examples from Q&A data (df_train.csv)
+  - BASE + SYSTEM PROMPT — base + system prompt: "Speak like Paul Graham"
+  - BASE + SYS PROMPT + 10 EXAMPLES — base + system prompt + 10 few-shot
+    examples from val.jsonl (longest answers)
+  - PAULGLLM — final merged model (CPT + SFT)
+
+JUDGE BOARD (Blind):
+  - All responses are labeled "Response A" and "Response B"
+  - **Model identity is NEVER shown** — you don't know which is PaulG-LM
+  - Order randomized per question (PaulG-LM could be A or B)
+  - You pick winner per question: A, B, or Tie
+  - Judge Board built as interactive HTML
 
 SYSTEM PROMPT RULE:
   System prompts are for BASE models ONLY (to set baseline behavior).
@@ -197,53 +216,10 @@ SYSTEM PROMPT RULE:
   speak like Paul Graham in any form of prompt. They speak like him
   naturally — their natural style becomes Paul Graham's through training.
 
-3-JUDGE SYSTEM:
-  - 3 independent sub-agent judges compare each question
-  - Each judge reads BOTH responses and declares a winner (Model A or Model B)
-  - The 3 judges differ ONLY in the context/prompting they receive
-    (different angles of evaluation — e.g. helpfulness, naturalness,
-    domain understanding)
-  - CRITICAL: Judges are NEVER told which response belongs to which model
-    Responses are labeled anonymously: "Response A" and "Response B"
-    This prevents leakage / bias toward either model
-  - Per-question winner = majority vote of 3 judges
-  - If no majority (1-1-1), question is recorded as a tie
-
-JUDGE CONTEXTS (3 different contexts — each judge gets a different framing):
-  - Judge 1 context: "Which response is more helpful and accurate to the user?"
-  - Judge 2 context: "Which response sounds more natural and human-written?"
-  - Judge 3 context: "Which response demonstrates deeper domain understanding?"
-  (Contexts may be adjusted per eval run)
-
-OUTPUT FORMAT — head_to_head_results.jsonl:
-  {"question": "...",
-   "model1_name": "...",
-   "model2_name": "...",
-   "model1_response": "...",
-   "model2_response": "...",
-   "judge1_winner": "model1"|"model2"|"tie",
-   "judge2_winner": "model1"|"model2"|"tie",
-   "judge3_winner": "model1"|"model2"|"tie",
-   "final_winner": "model1"|"model2"|"tie"}
-
-REPORT FORMAT:
-  - Per-question winner (Model A, Model B, or Tie)
-  - Total head-to-head: Model A wins / Model B wins / Ties
-  - Per-judge breakdown (did all 3 agree, or split?)
-  - Compared models labeled clearly (STAGE 1, PAULGLLM, STAGE 2 ONLY, BASE, etc.)
-
-=======================================================================
-FOLDER CONTRACT — EVALUATION
------------------------------
-  data/eval/         Evaluation data
-                     ├── test_questions.jsonl    — fixed test questions
-                     ├── model1_responses.jsonl   — PG-LM (or other model) responses
-                     ├── model2_responses.jsonl   — comparison model responses
-                     ├── judge_results.jsonl      — per-judge winner per Q
-                     ├── head_to_head_results.jsonl — final results with all judges
-                     └── judge_prompts.txt        — the 3 judge contexts used
-
-  experiments/       Eval results, judge data, blog, etc.
+OUTPUT:
+  - Per-question winner (PaulG-LM wins, Other model wins, or Tie)
+  - Total head-to-head record per comparison pair
+  - Example: "PaulG-LM vs STAGE 1 ONLY: 32 wins / 12 losses / 6 ties"
 
 =======================================================================
 NON-NEGOTIABLE RULES
@@ -256,13 +232,13 @@ NON-NEGOTIABLE RULES
 7. Large datasets stay local.
 8. NEVER add system prompt to training data (fine-tuned models).
 9. System prompts are for BASE models ONLY.
-10. Stage 1: NO chat template. Stage 2: apply_chat_template.
-11. PG identity from TRAINING, not prompting.
-12. ALL training happens on Colab CLI (GPU T4). Use `colab run --gpu T4`.
-13. Repos stay on dev branch; never commit without asking owner.
-14. No score-based evaluation (0-100). Always head-to-head comparisons only.
-15. Judges (sub-agents) are NEVER told which response belongs to which model.
-16. All 3 judges must differ in context/prompting to ensure independent judgment.
+10. Stage 1: **1 epoch**. Stage 2: **3 epochs**.
+11. Stage 1: NO chat template. Stage 2: apply_chat_template.
+12. PG identity from TRAINING, not prompting.
+13. ALL training happens on Colab CLI (GPU T4). Use `colab run --gpu T4`.
+14. Repos stay on dev branch; never commit without asking owner.
+15. No score-based evaluation (0-100). Always head-to-head with Judge Board.
+16. Judge Board is blind — model identity never shown to user-judge.
 17. SFT data already exists — no data generation needed.
 
 =======================================================================
@@ -283,6 +259,8 @@ Note: Colab CLI must be installed from git:
 KEY COMMANDS
 --------------
   python src/data/build_dataset.py
+  python src/data/prepare_fewshot.py
+  python src/data/build_judge_board.py
   python src/training/merge.py
   colab run --gpu T4 python src/training/train_stage1.py
   colab run --gpu T4 python src/training/train_stage2.py
