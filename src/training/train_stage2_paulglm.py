@@ -110,7 +110,7 @@ def main():
         save_strategy="steps",
         save_steps=999999,
         save_total_limit=1,
-        evaluation_strategy="steps" if val_data else "no",
+        eval_strategy="steps" if val_data else "no",
         eval_steps=25 if val_data else None,
         fp16=torch.cuda.is_available(),
         optim="adamw_torch",

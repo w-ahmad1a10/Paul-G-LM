@@ -128,7 +128,7 @@ def main():
         save_strategy="steps",
         save_steps=999999,
         save_total_limit=1,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         eval_steps=100,
         fp16=torch.cuda.is_available(),
         optim="adamw_torch",

@@ -10,19 +10,19 @@ Pipeline: Stage 1 CPT → Stage 2 ONLY → PaulG-LM Stage 2 → Merge → Eval �
 ## What Was Achieved
 - All project scripts, configs, and docs prepared and committed
 - Colab CLI v0.7.1 installed and authenticated
-- VM `paulglim` provisioned (T4 GPU, Standard shape)
-- Data tarball (6.8MB) successfully uploaded to VM
-- Setup script ran: extracted files, installed deps, verified all 12 required files
-- Package script bug fixed (exclude pattern blocking fewshot_examples.jsonl)
-- Updated workflow to use `colab install` (uv) instead of pip for faster installs
+- VM `paulglim` provisioned (T4 GPU, Standard shape) — session lost due to idle timeout
+- Data tarball uploaded, deps installed (uv), all 12 required files verified on VM
+- Package script bug fixed (exclude pattern)
+- Stage 1 data loading works (49,178 train blocks, 5,690 val blocks)
+- Fixed 5 Python bugs in training scripts (see below)
 
-## What Was NOT Achieved
-- No training ran. VM session was lost before pipeline execution.
-- No models were trained.
-- No eval responses generated.
-- No judge board built.
+## What Was Not Achieved
+- No training completed. Pipeline fails at Stage 1 due to API incompatibilities.
+- No models trained, no eval, no judge board.
 
 ## Problems Encountered
+
+### Colab CLI / Workflow Problems
 
 ### 1. `--keep` flag does not work with `colab new`
 Attempted: `colab new -s paulglim --gpu T4 --keep`
@@ -57,6 +57,28 @@ Fix: Recreated the file each time. Should write it to a persistent location (e.g
 After the setup step completed successfully, the VM session `paulglim` was lost (404/401 error). The Colab VM expired or was terminated by Google before the pipeline could be executed. The `colab stop` command also failed because the session no longer existed.
 No root cause could be determined. Free-tier Colab VMs have ~90-minute idle timeouts.
 
+### Python Script Bugs (fixed)
+
+### 8. `torchao` version incompatibility with PEFT
+Error: `ImportError: Found an incompatible version of torchao. Found version 0.10.0, but only versions above 0.16.0 are supported`
+PEFT calls `is_torchao_available()` which fails with old torchao.
+Fix: `colab exec -s paulglim -f /tmp/fix_torchao.py` → `pip install --upgrade torchao` (0.10.0 → 0.18.0)
+
+### 9. `Path` not imported in train_stage1.py
+Error: `NameError: name 'Path' is not defined` at line 104
+`Path` used but not imported (other scripts had the import).
+Fix: Added `from pathlib import Path` to imports in `train_stage1.py`
+
+### 10. `LOGGING_STEPS` not defined in train_stage1.py
+Error: `NameError: name 'LOGGING_STEPS' is not defined` at line 126
+Other stage2 scripts define `LOGGING_STEPS = 10` but Stage 1 was missing it.
+Fix: Added `LOGGING_STEPS = 10` to constants in `train_stage1.py`
+
+### 11. `evaluation_strategy` renamed to `eval_strategy` in transformers v4.46+
+Error: `TypeError: TrainingArguments.__init__() got an unexpected keyword argument 'evaluation_strategy'`
+New transformers API uses `eval_strategy` instead of `evaluation_strategy`.
+Fix: Replaced `evaluation_strategy` with `eval_strategy` in all 3 training scripts
+
 ## Workflow Lessons
 1. **Always use `colab install` (uv)** for package installation — faster than pip
 2. **`colab exec -f` takes LOCAL paths only** — never remote VM paths
@@ -65,6 +87,9 @@ No root cause could be determined. Free-tier Colab VMs have ~90-minute idle time
 5. **Colab sessions are ephemeral** — download all results before stopping
 6. **`colab exec` has 10s poll timeout** — scripts should produce output every ~5s
 7. **`--keep` is for `colab run` only** — `colab new` sessions stay alive by default
+8. **Check installed package versions** — torchao, transformers, PEFT may have conflicts
+9. **Test training scripts individually** before running full pipeline
+10. **New transformers API: `eval_strategy` not `evaluation_strategy`**
 
 ## Files Created
 - `src/training/run_on_colab.py` — Full pipeline runner (6 steps, heartbeat, dependency check)
