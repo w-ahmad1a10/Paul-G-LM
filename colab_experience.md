@@ -13,13 +13,15 @@ Pipeline: Stage 1 CPT → Stage 2 ONLY → PaulG-LM Stage 2 → Merge → Eval �
 - VM `paulglim` provisioned (T4 GPU, Standard shape)
 - Data tarball uploaded, deps installed (uv), all 12 required files verified on VM
 - Package script bug fixed (exclude pattern)
-- Stage 1 data loading works (49,178 train blocks, 5,690 val blocks)
-- Fixed 6 Python bugs in training scripts (see below)
-- Stage 1 training RUNNING in background (PID 888, step 200/3074)
+- Stage 1 CPT training COMPLETE (3074/3074 steps, loss logged)
+- Stage 1 outputs downloaded locally: `paulglim_models/pg-stage1/`, `paulglim_models/stage1.log`
+- Fixed 10 bugs total in training scripts (see below)
+- VM stopped for further fixes
 
 ## What Was Not Achieved
-- No training completed. Pipeline fails at Stage 1 due to API incompatibilities.
-- No models trained, no eval, no judge board.
+- Stage 1 CPT: COMPLETE (locally)
+- Stage 2 training: SCRIPT FIXED but NOT YET RUN on Colab (user paused)
+- No models trained for Stage 2, no eval, no judge board.
 
 ## Problems Encountered
 
@@ -85,6 +87,25 @@ Error: `TypeError: TrainingArguments.__init__() got an unexpected keyword argume
 New transformers API uses `eval_strategy` instead of `evaluation_strategy`.
 Fix: Replaced `evaluation_strategy` with `eval_strategy` in all 3 training scripts
 
+### 12. Missing tokenization after `format_chat`
+Both Stage 2 scripts applied chat template to create text but never tokenized it. The `tokenize` step was missing entirely.
+Fix: Added `tokenize()` function using `tokenizer.apply_chat_template(messages, tokenize=True)` in both scripts.
+
+### 13. Labels missing in tokenized SFT data
+Error: `ValueError: The model did not return a loss from the inputs, only the following keys: logits`
+Causal LM needs `labels` for loss computation.
+Fix: Added `tokens["labels"] = tokens["input_ids"].copy()` in both scripts.
+
+### 14. Wrong data collator (transformers v5.x)
+Error: `ValueError: Unable to create tensor ... labels have excessive nesting`
+`DataCollatorForLanguageModeling` from transformers 5.x fails to pad batches when `labels` key is present alongside `input_ids`.
+Fix (interim): Pre-pad all examples using `tokenizer.pad(tokens, padding="max_length", max_length=MAX_LENGTH)`
+Fix (final): Use `trl.trainer.sft_trainer.DataCollatorForLanguageModeling` (TRL's defacto SFT collator, handles labels + dynamic padding correctly).
+
+### 15. Improper chat template for SFT data
+Both Stage 2 scripts used a two-step approach (format text manually, then tokenize separately) and only included the user message in the chat template, appending the answer as raw text.
+Fix: Use conversational format `messages=[user(Q), assistant(A)]` with `tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=False)` — proper HF/TRL approach.
+
 ## Workflow Lessons
 1. **Always use `colab install` (uv)** for package installation — faster than pip
 2. **`colab exec -f` takes LOCAL paths only** — never remote VM paths
@@ -97,6 +118,9 @@ Fix: Replaced `evaluation_strategy` with `eval_strategy` in all 3 training scrip
 9. **Test training scripts individually** before running full pipeline
 10. **New transformers API: `eval_strategy` not `evaluation_strategy`**
 11. **SFT needs `labels = input_ids`** — Trainer won't compute loss without it
+12. **TRL DataCollatorForLanguageModeling** is the defacto SFT collator — handles labels + padding properly
+13. **`apply_chat_template(tokenize=True)` returns `BatchEncoding`** — use `.copy()` for labels, not `[]` indexing
+14. **Transformers 5.x `DataCollatorForLanguageModeling` has labels padding bug** — use TRL's version instead
 
 ## Files Created
 - `src/training/run_on_colab.py` — Full pipeline runner (6 steps, heartbeat, dependency check)
