@@ -10,11 +10,12 @@ Pipeline: Stage 1 CPT → Stage 2 ONLY → PaulG-LM Stage 2 → Merge → Eval �
 ## What Was Achieved
 - All project scripts, configs, and docs prepared and committed
 - Colab CLI v0.7.1 installed and authenticated
-- VM `paulglim` provisioned (T4 GPU, Standard shape) — session lost due to idle timeout
+- VM `paulglim` provisioned (T4 GPU, Standard shape)
 - Data tarball uploaded, deps installed (uv), all 12 required files verified on VM
 - Package script bug fixed (exclude pattern)
 - Stage 1 data loading works (49,178 train blocks, 5,690 val blocks)
-- Fixed 5 Python bugs in training scripts (see below)
+- Fixed 6 Python bugs in training scripts (see below)
+- Stage 1 training RUNNING in background (PID 888, step 200/3074)
 
 ## What Was Not Achieved
 - No training completed. Pipeline fails at Stage 1 due to API incompatibilities.
