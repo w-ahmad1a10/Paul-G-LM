@@ -95,6 +95,13 @@ def main():
     if val_data:
         val_data = val_data.map(format_chat, remove_columns=val_data.column_names)
 
+    def tokenize(example):
+        return tokenizer(example["text"], truncation=True, max_length=MAX_LENGTH)
+
+    train_data = train_data.map(tokenize, remove_columns=["text"])
+    if val_data:
+        val_data = val_data.map(tokenize, remove_columns=["text"])
+
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer, padding="longest")
 
     output_dir = os.path.join(OUTPUT_DIR, ADAPTER_NAME)
