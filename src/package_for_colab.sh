@@ -10,12 +10,17 @@ OUTPUT="/tmp/paulglim_colab.tar.gz"
 cd "$PROJECT_DIR"
 
 tar czf "$OUTPUT" \
-  --exclude='data/raw/*' \
   --exclude='models/*' \
   --exclude='logs/*' \
   --exclude='.git' \
+  --exclude='data/raw/all_pg_essays_merged.*' \
+  --exclude='data/raw/essays.jsonl' \
+  --exclude='data/raw/tweets.jsonl' \
+  --exclude='data/raw/train_filtered.csv' \
+  --exclude='data/raw/README.md' \
+  --exclude='data/raw/SOURCES.md' \
   src configs data/processed data/eval/test_questions.jsonl \
-  data/raw/fewshot_examples.jsonl data/raw/train_filtered.csv \
+  data/raw/fewshot_examples.jsonl \
   Paul-G-LM.md agent.md
 
 echo ""
