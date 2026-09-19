@@ -284,6 +284,7 @@ COLAB CLI WORKFLOW
 Note: `colab exec` has 10s poll timeout — `run_on_colab.py` includes
 heartbeat prints every 5s to avoid this. If it times out, check progress
 with `colab exec -s paulglim 'ps aux | grep python'`.
+Use `colab install` (uv) for package installation — faster than pip.
 
 =======================================================================
 RUN PROCEDURE
@@ -291,26 +292,29 @@ RUN PROCEDURE
 Step 0 — Package locally:
   bash src/package_for_colab.sh
 
-Step 1 — Provision VM (keeps alive):
-  colab new -s paulglim --gpu T4 --keep
+Step 1 — Provision VM:
+  colab new -s paulglim --gpu T4
 
 Step 2 — Upload package:
   colab upload -s paulglim /tmp/paulglim_colab.tar.gz /content/paulglim_colab.tar.gz
 
-Step 3 — Extract + install deps:
-  colab exec -s paulglim 'cd /content && tar xzf paulglim_colab.tar.gz && pip install -q transformers peft datasets accelerate'
+Step 3 — Install deps (uv):
+  colab install -s paulglim transformers peft datasets accelerate
 
-Step 4 — Run full pipeline:
-  colab exec -s paulglim -f /content/src/training/run_on_colab.py
+Step 4 — Extract data on VM:
+  colab exec -s paulglim -f /tmp/setup_colab.py
 
-Step 5 — Download results:
+Step 5 — Run full pipeline:
+  colab exec -s paulglim -f /mnt/c/Workspace/01 Projects/Paul-G-Lm/src/training/run_on_colab.py
+
+Step 6 — Download results:
   colab download -s paulglim /content/models ./paulglim_models
   colab download -s paulglim /content/experiments ./paulglim_experiments
 
-Step 6 — Build judge board locally:
+Step 7 — Build judge board locally:
   cd "/mnt/c/Workspace/01 Projects/Paul-G-Lm" && python src/data/build_judge_board.py
 
-Step 7 — Stop VM:
+Step 8 — Stop VM:
   colab stop -s paulglim
 
 =======================================================================

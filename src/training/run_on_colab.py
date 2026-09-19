@@ -21,7 +21,10 @@ import time
 import threading
 import subprocess
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if os.path.exists("/content"):
+    BASE_DIR = "/content"
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 STOP_EVENT = threading.Event()
 
@@ -75,13 +78,8 @@ def main():
         import transformers, peft, datasets
         print("✓ Dependencies already installed")
     except ImportError:
-        print("Installing dependencies...")
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q",
-             "transformers", "peft", "datasets", "accelerate"],
-            check=True,
-        )
-        print("✓ Dependencies installed")
+        print("⚠ Dependencies missing — run: colab install transformers peft datasets accelerate")
+        sys.exit(1)
 
     hb_thread = threading.Thread(target=heartbeat, daemon=True)
 
