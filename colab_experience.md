@@ -75,6 +75,11 @@ Error: `NameError: name 'LOGGING_STEPS' is not defined` at line 126
 Other stage2 scripts define `LOGGING_STEPS = 10` but Stage 1 was missing it.
 Fix: Added `LOGGING_STEPS = 10` to constants in `train_stage1.py`
 
+### 12. Labels missing in tokenized SFT data
+Error: `ValueError: The model did not return a loss from the inputs, only the following keys: logits`
+Causal LM needs `labels = input_ids` for loss computation.
+Fix: Added `tokens["labels"] = tokens["input_ids"].copy()` in both Stage 2 scripts
+
 ### 11. `evaluation_strategy` renamed to `eval_strategy` in transformers v4.46+
 Error: `TypeError: TrainingArguments.__init__() got an unexpected keyword argument 'evaluation_strategy'`
 New transformers API uses `eval_strategy` instead of `evaluation_strategy`.
@@ -91,6 +96,7 @@ Fix: Replaced `evaluation_strategy` with `eval_strategy` in all 3 training scrip
 8. **Check installed package versions** — torchao, transformers, PEFT may have conflicts
 9. **Test training scripts individually** before running full pipeline
 10. **New transformers API: `eval_strategy` not `evaluation_strategy`**
+11. **SFT needs `labels = input_ids`** — Trainer won't compute loss without it
 
 ## Files Created
 - `src/training/run_on_colab.py` — Full pipeline runner (6 steps, heartbeat, dependency check)
