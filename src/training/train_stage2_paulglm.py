@@ -84,25 +84,18 @@ def main():
     train_data = load_dataset("json", data_files=TRAIN_FILE, split="train")
     val_data = load_dataset("json", data_files=VAL_FILE, split="train") if os.path.exists(VAL_FILE) else None
 
-    def format_chat(example):
+    def tokenize(example):
         messages = [
             {"role": "user", "content": example["instruction"]},
+            {"role": "assistant", "content": example["output"]},
         ]
-        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        return {"text": text + example["output"]}
-
-    train_data = train_data.map(format_chat, remove_columns=train_data.column_names)
-    if val_data:
-        val_data = val_data.map(format_chat, remove_columns=val_data.column_names)
-
-    def tokenize(example):
-        tokens = tokenizer(example["text"], truncation=True, max_length=MAX_LENGTH)
+        tokens = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=False)
         tokens["labels"] = tokens["input_ids"].copy()
         return tokens
 
-    train_data = train_data.map(tokenize, remove_columns=["text"])
+    train_data = train_data.map(tokenize, remove_columns=train_data.column_names)
     if val_data:
-        val_data = val_data.map(tokenize, remove_columns=["text"])
+        val_data = val_data.map(tokenize, remove_columns=val_data.column_names)
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 

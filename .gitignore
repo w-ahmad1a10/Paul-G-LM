@@ -22,3 +22,4 @@ logs/*
 #临时
 *.tmp
 *.log
+paulglim_models/
