@@ -20,7 +20,7 @@ import sys
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import Trainer, TrainingArguments
-from transformers import DataCollatorWithPadding
+from transformers import DataCollatorForLanguageModeling
 from peft import PeftModel, LoraConfig, get_peft_model
 from datasets import load_dataset
 
@@ -103,7 +103,7 @@ def main():
     if val_data:
         val_data = val_data.map(tokenize, remove_columns=["text"])
 
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer, padding="longest")
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
     output_dir = os.path.join(OUTPUT_DIR, ADAPTER_NAME)
 
