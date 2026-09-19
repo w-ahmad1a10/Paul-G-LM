@@ -90,6 +90,7 @@ def main():
             {"role": "assistant", "content": example["output"]},
         ]
         tokens = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=False)
+        tokens = tokenizer.pad(tokens, padding="max_length", max_length=MAX_LENGTH, return_tensors=None)
         tokens["labels"] = tokens["input_ids"].copy()
         return tokens
 

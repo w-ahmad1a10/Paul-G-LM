@@ -19,7 +19,7 @@ models/
 logs/*
 !logs/.gitkeep
 
-#临时
+# Temp
 *.tmp
 *.log
 paulglim_models/
