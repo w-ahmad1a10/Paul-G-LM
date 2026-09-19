@@ -82,6 +82,7 @@ def main():
         sys.exit(1)
 
     hb_thread = threading.Thread(target=heartbeat, daemon=True)
+    hb_thread.start()
 
     run_step([sys.executable, "src/training/train_stage1.py"],
              "Stage 1: CPT — Pre-train on PG text (1 epoch, ~2205 steps)")
