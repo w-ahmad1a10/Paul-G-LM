@@ -20,7 +20,7 @@ import sys
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import Trainer, TrainingArguments
-from transformers import DataCollatorForLanguageModeling
+from trl.trainer.sft_trainer import DataCollatorForLanguageModeling as TRLDataCollatorForLanguageModeling
 from peft import PeftModel, LoraConfig, get_peft_model
 from datasets import load_dataset
 
@@ -89,7 +89,6 @@ def main():
             {"role": "assistant", "content": example["output"]},
         ]
         tokens = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=False)
-        tokens = tokenizer.pad(tokens, padding="max_length", max_length=MAX_LENGTH, return_tensors=None)
         tokens["labels"] = tokens["input_ids"].copy()
         return tokens
 
@@ -97,7 +96,7 @@ def main():
     if val_data:
         val_data = val_data.map(tokenize, remove_columns=val_data.column_names)
 
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    data_collator = TRLDataCollatorForLanguageModeling(pad_token_id=tokenizer.pad_token_id)
 
     output_dir = os.path.join(OUTPUT_DIR, ADAPTER_NAME)
 

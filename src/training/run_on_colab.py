@@ -75,10 +75,10 @@ def main():
     check_data()
 
     try:
-        import transformers, peft, datasets
+        import transformers, peft, datasets, trl
         print("✓ Dependencies already installed")
     except ImportError:
-        print("⚠ Dependencies missing — run: colab install transformers peft datasets accelerate")
+        print("⚠ Dependencies missing — run: colab install transformers peft datasets accelerate trl")
         sys.exit(1)
 
     hb_thread = threading.Thread(target=heartbeat, daemon=True)
